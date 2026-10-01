@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>wind-tunnel</Name>
+  <Repository>ghcr.io/rickxxrolling/wind-tunnel:latest</Repository>
+  <Registry>https://github.com/RICKxxROLLING/wind-tunnel/pkgs/container/wind-tunnel</Registry>
+  <Network>bridge</Network>
+  <Shell>bash</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/RICKxxROLLING/wind-tunnel</Support>
+  <Project>https://github.com/RICKxxROLLING/wind-tunnel</Project>
+  <Overview>Virtual wind tunnel: drop an STL into a live GPU lattice-Boltzmann flow simulation. The solver runs on the NVIDIA GPU; open the web UI from any computer.</Overview>
+  <Category>Tools:</Category>
+  <WebUI>http://[IP]:[PORT:8765]/</WebUI>
+  <ExtraParams>--runtime=nvidia</ExtraParams>
+  <Config Name="Web UI port" Target="8765" Default="8765" Mode="tcp" Type="Port" Display="always" Required="true">8765</Config>
+  <Config Name="Kernel cache" Target="/cache" Default="/mnt/user/appdata/wind-tunnel" Mode="rw" Type="Path" Display="advanced" Required="true">/mnt/user/appdata/wind-tunnel</Config>
+  <Config Name="NVIDIA_VISIBLE_DEVICES" Target="NVIDIA_VISIBLE_DEVICES" Default="all" Type="Variable" Display="always" Required="true" Description="GPU UUID from the Nvidia Driver plugin, or 'all'">all</Config>
+  <Config Name="NVIDIA_DRIVER_CAPABILITIES" Target="NVIDIA_DRIVER_CAPABILITIES" Default="compute,utility" Type="Variable" Display="advanced" Required="true">compute,utility</Config>
+</Container>

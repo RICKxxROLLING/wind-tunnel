@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Virtual Wind Tunnel</title>
+<style>
+  :root {
+    --bg: #0a0d13;
+    --panel: rgba(17, 21, 30, 0.86);
+    --line: rgba(255, 255, 255, 0.08);
+    --text: #e6e9ef;
+    --muted: #8b93a4;
+    --accent: #4cc9f0;
+    --accent2: #f72585;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif; overflow: hidden; }
+  #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .brand { position: fixed; top: 16px; left: 18px; font-weight: 650; letter-spacing: .02em; font-size: 15px; display: flex; gap: 10px; align-items: center; pointer-events: none; }
+  .brand .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+  .brand small { color: var(--muted); font-weight: 400; font-size: 12px; }
+  #panel { position: fixed; top: 12px; right: 12px; bottom: 12px; width: 300px; background: var(--panel); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--line); border-radius: 14px; overflow-y: auto; padding: 6px 14px 14px; }
+  #panel::-webkit-scrollbar { width: 6px; } #panel::-webkit-scrollbar-thumb { background: #2a3140; border-radius: 3px; }
+  details { border-bottom: 1px solid var(--line); padding: 8px 0; }
+  details:last-child { border-bottom: 0; }
+  summary { cursor: pointer; list-style: none; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); padding: 4px 0; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "▾"; float: right; transition: transform .2s; }
+  details:not([open]) summary::after { transform: rotate(-90deg); }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 8px 0; }
+  .row label { color: #c3c9d5; }
+  .row output { color: var(--accent); font-variant-numeric: tabular-nums; min-width: 52px; text-align: right; }
+  .stack { margin: 8px 0; }
+  .stack .top { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .stack .top output { color: var(--accent); font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  select, input[type=number] { background: #1a2030; color: var(--text); border: 1px solid var(--line); border-radius: 7px; padding: 5px 7px; font: inherit; }
+  input[type=number] { width: 80px; }
+  input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; }
+  button { background: #1d2434; color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font: inherit; cursor: pointer; transition: background .15s, border-color .15s; }
+  button:hover { background: #262f44; border-color: rgba(76, 201, 240, .4); }
+  button.primary { background: var(--accent); color: #04121a; border-color: transparent; font-weight: 600; }
+  button.primary:hover { background: #72d6f4; }
+  .grid { display: grid; gap: 6px; }
+  .g2 { grid-template-columns: 1fr 1fr; } .g4 { grid-template-columns: repeat(4, 1fr); }
+  #dropzone { border: 1.5px dashed rgba(76, 201, 240, .45); border-radius: 10px; padding: 16px 10px; text-align: center; color: #b9c2d3; cursor: pointer; margin: 8px 0; transition: background .15s; }
+  #dropzone:hover { background: rgba(76, 201, 240, .07); }
+  #dropzone b { color: var(--accent); }
+  #modelInfo { color: var(--muted); font-size: 12px; margin-top: 6px; }
+  .hint { color: var(--muted); font-size: 11.5px; margin: 6px 0 2px; }
+  #dropOverlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(8, 12, 20, .75); border: 3px dashed var(--accent); font-size: 22px; font-weight: 600; z-index: 20; pointer-events: none; }
+  body.dragging #dropOverlay { display: flex; }
+  #hud { position: fixed; left: 16px; bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap; max-width: calc(100% - 350px); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); min-width: 84px; }
+  .card .k { color: var(--muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; }
+  .card .v { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .card .v.small { font-size: 14px; }
+  #legend { position: fixed; left: 16px; top: 50px; width: 240px; }
+  #legend canvas { width: 100%; height: 10px; border-radius: 3px; display: block; margin: 6px 0 3px; }
+  #legend .ends { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+  #legend .title { font-size: 11.5px; color: #c3c9d5; }
+  #legend .item + .item { margin-top: 10px; }
+  #toast { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); background: #2a1520; border: 1px solid rgba(247, 37, 133, .5); color: #ffd6e8; padding: 8px 14px; border-radius: 10px; display: none; z-index: 30; }
+  #fatal { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: var(--bg); z-index: 40; padding: 24px; }
+  #fatal div { max-width: 480px; text-align: center; color: #c3c9d5; }
+  #fatal h2 { color: var(--text); }
+  #busy { position: fixed; top: 50%; left: calc(50% - 160px); transform: translate(-50%, -50%); color: var(--muted); display: none; }
+  @media (max-width: 760px) {
+    #panel { top: auto; left: 8px; right: 8px; width: auto; height: 46%; bottom: 8px; }
+    #hud { bottom: calc(46% + 16px); max-width: none; left: 8px; }
+    #legend { display: none; }
+    #busy { left: 50%; }
+  }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<canvas id="view"></canvas>
+<div class="brand"><span class="dot"></span>Virtual Wind Tunnel <small id="status">starting…</small></div>
+<div id="dropOverlay">Drop your STL into the tunnel</div>
+<div id="toast"></div>
+<div id="busy">Voxelizing…</div>
+
+<div id="legend" class="card"></div>
+
+<div id="hud">
+  <div class="card"><div class="k">Drag C<sub>d</sub></div><div class="v" id="cd">–</div></div>
+  <div class="card"><div class="k">Lift C<sub>l</sub></div><div class="v" id="cl">–</div></div>
+  <div class="card"><div class="k">Reynolds</div><div class="v small" id="reHud">–</div></div>
+  <div class="card"><div class="k">Solver</div><div class="v small" id="perf">–</div></div>
+</div>
+
+<aside id="panel">
+  <details open>
+    <summary>Model</summary>
+    <div id="dropzone"><b>Drop an .stl</b> anywhere<br>or click to browse</div>
+    <input type="file" id="file" accept=".stl" hidden>
+    <div class="grid g2">
+      <button data-sample="car">Car</button>
+      <button data-sample="ahmed">Ahmed body</button>
+      <button data-sample="wing">Wing</button>
+      <button data-sample="sphere">Sphere</button>
+    </div>
+    <div id="modelInfo"></div>
+  </details>
+
+  <details open>
+    <summary>Orientation</summary>
+    <div class="grid g4">
+      <button id="rotX" title="Rotate 90° about X">X 90°</button>
+      <button id="rotY" title="Rotate 90° about Y (vertical)">Y 90°</button>
+      <button id="rotZ" title="Rotate 90° about Z">Z 90°</button>
+      <button id="flip" title="Turn around (180°)">Flip</button>
+    </div>
+    <div class="stack"><div class="top"><label for="aoa">Pitch / angle of attack</label><output id="aoaVal"></output></div><input type="range" id="aoa" min="-25" max="25" step="0.5"></div>
+    <div class="stack"><div class="top"><label for="yaw">Yaw</label><output id="yawVal"></output></div><input type="range" id="yaw" min="-45" max="45" step="1"></div>
+    <div class="stack"><div class="top"><label for="scale">Size in tunnel</label><output id="scaleVal"></output></div><input type="range" id="scale" min="0.4" max="1.5" step="0.05"></div>
+    <div class="row"><label for="ground">Ground plane (moving belt)</label><input type="checkbox" id="ground"></div>
+  </details>
+
+  <details open>
+    <summary>Flow</summary>
+    <div class="stack"><div class="top"><label for="wind">Wind speed</label><output id="windVal"></output></div><input type="range" id="wind" min="5" max="400" step="5"></div>
+    <div class="row"><label for="length">Model length (m)</label><input type="number" id="length" min="0.001" step="0.01"></div>
+    <div class="row"><label>Reynolds number</label><output id="reVal"></output></div>
+    <div class="stack"><div class="top"><label for="speed">Simulation speed</label><output id="speedVal"></output></div><input type="range" id="speed" min="1" max="60" step="1"></div>
+    <div class="row"><label for="res">Grid resolution</label>
+      <select id="res">
+        <option>…</option>
+      </select></div>
+    <div class="row"><label for="refArea">C<sub>d</sub> / C<sub>l</sub> reference area</label>
+      <select id="refArea"><option value="frontal">Frontal</option><option value="planform">Planform</option></select></div>
+    <div class="stack"><div class="top"><label for="stab">Turbulence model (Cs)</label><output id="stabVal"></output></div><input type="range" id="stab" min="0.08" max="0.3" step="0.01"></div>
+    <div class="grid g2" style="margin-top:10px">
+      <button id="play" class="primary">Pause</button>
+      <button id="resetFlow">Reset flow</button>
+    </div>
+  </details>
+
+  <details open>
+    <summary>Visualization</summary>
+    <div class="row"><label for="lines">Streamlines</label><input type="checkbox" id="lines"></div>
+    <div class="row"><label for="lineColor">Colour</label>
+      <select id="lineColor"><option value="speed">By speed</option><option value="smoke">Smoke</option></select></div>
+    <div class="row"><label for="rake">Seed rake</label>
+      <select id="rake"><option value="volume">Volume</option><option value="vsheet">Vertical sheet</option><option value="hsheet">Horizontal sheet</option></select></div>
+    <div class="row"><label for="count">Particles</label>
+      <select id="count"><option>2000</option><option>5000</option><option>10000</option><option>20000</option></select></div>
+    <div class="stack"><div class="top"><label for="rakeSize">Rake size</label><output id="rakeSizeVal"></output></div><input type="range" id="rakeSize" min="0.2" max="2" step="0.05"></div>
+    <div class="row" style="margin-top:14px"><label for="field">Slice plane</label>
+      <select id="field"><option value="off">Off</option><option value="speed">Speed</option><option value="pressure">Pressure</option><option value="vorticity">Vorticity</option><option value="ux">Streamwise velocity</option></select></div>
+    <div class="row"><label for="axis">Plane</label>
+      <select id="axis"><option value="z">Side (vertical)</option><option value="y">Top (horizontal)</option><option value="x">Cross-section</option></select></div>
+    <div class="stack"><div class="top"><label for="slicePos">Plane position</label><output id="slicePosVal"></output></div><input type="range" id="slicePos" min="0" max="1" step="0.005"></div>
+    <div class="stack"><div class="top"><label for="sliceOpacity">Plane opacity</label><output id="sliceOpacityVal"></output></div><input type="range" id="sliceOpacity" min="0.1" max="1" step="0.05"></div>
+    <div class="row" style="margin-top:14px"><label for="cp">Surface pressure on model</label><input type="checkbox" id="cp"></div>
+    <p class="hint">Drag to orbit · scroll to zoom · Space to pause</p>
+  </details>
+
+  <details>
+    <summary>About the solver</summary>
+    <p class="hint">Lattice-Boltzmann (D3Q19) with a regularized collision and Smagorinsky large-eddy turbulence model, running on the server's NVIDIA GPU (CUDA via Warp) and streamed to this page. Inlet at free-stream speed, far-field side walls, zero-gradient outlet. Forces use momentum exchange; C<sub>d</sub> and C<sub>l</sub> use the frontal or planform area you choose. The grid is coarse, so expect qualitative flow structure and ballpark coefficients — not certified CFD.</p>
+  </details>
+</aside>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

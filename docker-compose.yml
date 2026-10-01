@@ -1,0 +1,13 @@
+services:
+  wind-tunnel:
+    image: ghcr.io/rickxxrolling/wind-tunnel:latest
+    container_name: wind-tunnel
+    restart: unless-stopped
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    ports:
+      - "8765:8765"
+    volumes:
+      - /mnt/user/appdata/wind-tunnel:/cache
